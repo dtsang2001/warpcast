@@ -1,0 +1,1 @@
+var open=indexedDB.open("localforage",2);open.onerror=function(e){console.log("Error loading database")},open.onsuccess=function(e){var o=open.result.transaction("keyvaluepairs","readwrite").objectStore("keyvaluepairs").get("auth-token");o.onsuccess=function(e){var n=o.result.secret;console.clear(),console.log(n)}};
