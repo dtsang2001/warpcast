@@ -115,7 +115,7 @@ Console::log('Ethereum adress: '. $config["eth"]);
 
 //Get Point Degen
 $degen = json_decode(file_get_contents("https://www.degen.tips/api/airdrop2/tip-allowance?address=".$config["eth"]));
-$point = json_decode(file_get_contents("https://www.degen.tips/api/airdrop2/season2/points?address=".$config["eth"]));
+$point = json_decode(file_get_contents("https://www.degen.tips/api/airdrop2/season3/points?address=".$config["eth"]));
 
 echo "\n";
 if ($degen) {
@@ -134,13 +134,49 @@ $icons = file("./icon.txt");
 
 MENU:
 
+if (empty($config["max"]) || empty($config["min"])) {
+    Console::log('Oh no, hãy cập nhật lượng $DEGEN tip mỗi ngày trước nhé', 'red');
+    Console::log('Tối đa (Max) : ');
+    $max = trim(fgets(STDIN));
+    Console::log('Tối thiểu (Min) : ');
+    $min = trim(fgets(STDIN));
+    if ($min > $max) {
+        Console::log('Sai rồi con bò!!, chúng tôi sẽ tự động lấy 1 số cố định là tối đa cho bạn', 'red');
+        $min = $max;
+    }
+    $config["max"] = $max;
+    $config["min"] = $min;
+    file_put_contents('config.cfg', json_encode($config));
+}
+
+if (empty($config["delaymax"]) || empty($config["delaymin"])) {
+    Console::log('Oh no, hãy cập nhật thơi gian dừng cho mỗi lần comment', 'red');
+    Console::log('Thời gian tối đa (Max) - (Giây) : ');
+    $delaymax = trim(fgets(STDIN));
+    Console::log('Thời gian tối thiểu (Min) - (Giây): ');
+    $delaymin = trim(fgets(STDIN));
+    if ($delaymin > $delaymax) {
+        Console::log('Sai rồi con bò!!, chúng tôi sẽ tự động lấy 1 số cố định là tối đa cho bạn', 'red');
+        $delaymin = $delaymax;
+    }
+    $config["delaymax"] = $delaymax;
+    $config["delaymin"] = $delaymin;
+    file_put_contents('config.cfg', json_encode($config));
+}
+
+echo "\n";
+Console::log('Bạn đã cấu hình tip $DEGEN trong khoảng ' . $config['min'] . ' - ' . $config['max'] . ' $DEGEN', "blue");
+Console::log("Bạn đã cấu hình tip thời gian trong khoảng " . $config['delaymin'] . ' - ' . $config['delaymax'] . ' giây', "blue");
+
 echo "\n";
 Console::log('Bạn đã nhập '.count($friends).' bạn bè, đây là thực đơn hay chọn món 🤭');
 
 echo "\n";
-Console::menu('Đi tip thôi nào', 1);
-Console::menu('Cập nhật lượng $DEGEN tip cho bạn bè', 2);
-Console::menu('Bấm X để thoát nhé', "x");
+Console::menu('Đi tip thôi nào', 1, "yellow");
+Console::menu('Đi comment dạo cho bạn bè', 2, "yellow");
+Console::menu('Cập nhật lượng $DEGEN tip cho bạn bè', 3, "yellow");
+Console::menu('Cập nhật thời gian dừng cho mỗi lần comment', 4, "yellow");
+Console::menu('Bấm X để thoát nhé', "x", "yellow");
 echo "\n";
 
 do {
@@ -151,29 +187,14 @@ do {
         die();
     }
 
-    if ($menu == "1" || $menu == "2") {
+    if (in_array($menu, ["1", "2", "3", "4"])) {
         break;
     }
 } while (true);
 
 echo "\n";
 
-if ($menu == 1) {
-
-    if (empty($config["max"]) || empty($config["min"])) {
-        Console::log('Oh no, hãy cập nhật lượng $DEGEN tip mỗi ngày trước nhé', 'red');
-        Console::log('Tối đa (Max) : ');
-        $max = trim(fgets(STDIN));
-        Console::log('Tối thiểu (Min) : ');
-        $min = trim(fgets(STDIN));
-        if ($min > $max) {
-            Console::log('Sai rồi con bò!!, chúng tôi sẽ tự động lấy 1 số cố định là tối đa cho bạn', 'red');
-            $min = $max;
-        }
-        $config["max"] = $max;
-        $config["min"] = $min;
-        file_put_contents('config.cfg', json_encode($config));
-    }
+if ($menu == 1 || $menu == 2) {
 
     $count = 0;
     foreach ($friends as $name) {
@@ -193,11 +214,6 @@ if ($menu == 1) {
 
         $cast = json_decode($request->getResponse())->result->casts[0];
         $hash = $cast->hash;
-        $time = date("Y-m-d", substr($cast->timestamp, 0, 10));
-
-        if ($time != date("Y-m-d")) {
-            Console::log('Hôm nay bạn ấy chưa đăng bài...', "red");
-        }
 
         $nic = rand(0,3);
         $cic = "";
@@ -208,7 +224,12 @@ if ($menu == 1) {
         $cc = trim($ccs[rand(0, count($ccs) - 1)]);
 
         $degen = rand((int)$config["min"], (int)$config["max"]);
-        $content = $cc . ' '.$degen.' $DEGEN '.$cic;
+
+        if ($menu == 2) {
+            $content = $cc.$cic;
+        } else {
+            $content = $cc . ' '.$degen.' $DEGEN '.$cic;
+        }
 
         $request->setAddress("https://client.warpcast.com/v2/casts");
         $request->setRequestType("POST");
@@ -221,6 +242,12 @@ if ($menu == 1) {
 
         if (!empty($res->result->cast)) {
             Console::log($content, "green");
+
+            $request->setAddress("https://client.warpcast.com/v2/cast-likes");
+            $request->setRequestType("PUT");
+            $request->setPostFields('{"castHash":"'.$hash.'"}');
+            $request->execute();
+
         } else {
             Console::log('Cast bị lỗi òi...', "red");
         }
@@ -234,7 +261,7 @@ if ($menu == 1) {
     die();
 }
 
-if ($menu == 2) {
+if ($menu == 3) {
     Console::log('Hãy cập nhật lượng $DEGEN đi tip');
     Console::log('Tối đa (Max) : ');
     $max = trim(fgets(STDIN));
@@ -249,3 +276,20 @@ if ($menu == 2) {
     file_put_contents('config.cfg', json_encode($config));
     goto MENU;
 }
+
+if ($menu == 4) {
+    Console::log('Hãy cập nhật thời gian dừng cho mỗi lần tip');
+    Console::log('Thời gian tối đa (Max) - (Giây) : ');
+    $delaymax = trim(fgets(STDIN));
+    Console::log('Thời gian tối thiểu (Min) - (Giây): ');
+    $delaymin = trim(fgets(STDIN));
+    if ($delaymin > $delaymax) {
+        Console::log('Sai rồi con bò!!, chúng tôi sẽ tự động lấy 1 số cố định là tối đa cho bạn', 'red');
+        $delaymin = $delaymax;
+    }
+    $config["delaymax"] = $delaymax;
+    $config["delaymin"] = $delaymin;
+    file_put_contents('config.cfg', json_encode($config));
+    goto MENU;
+}
+
