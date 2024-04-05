@@ -224,6 +224,7 @@ if ($menu == 1 || $menu == 2) {
         $cc = trim($ccs[rand(0, count($ccs) - 1)]);
 
         $degen = rand((int)$config["min"], (int)$config["max"]);
+        $time_delay = rand((int)$config["delaymin"], (int)$config["delaymax"]);
 
         if ($menu == 2) {
             $content = $cc.$cic;
@@ -236,7 +237,7 @@ if ($menu == 1 || $menu == 2) {
         $request->setPostFields('{"text":"'.$content.'","parent":{"hash":"'.$hash.'"},"embeds":[]}');
         $request->execute();
 
-        $count += ($degen *20);
+        $count += $degen;
 
         $res = json_decode($request->getResponse());
 
@@ -252,8 +253,9 @@ if ($menu == 1 || $menu == 2) {
             Console::log('Cast bị lỗi òi...', "red");
         }
 
+        Console::log("Tạm dừng $time_delay giây", "green");
         echo "\n";
-        sleep(rand(10,20));
+        sleep($time_delay);
     }
     echo "\n";
     Console::log("═════════════════════════════════════════════", "green");
